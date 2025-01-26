@@ -9,6 +9,102 @@
     <!-- 在<head>中添加 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
 
+<style>
+    /* 加载动画容器 */
+    #preloader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        /* 改为纯黑背景 */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+    }
+
+    /* 动态粒子动画-黑金风格 */
+    .particles {
+        position: relative;
+        width: 120px;
+        height: 120px;
+    }
+
+    .particle {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: rgba(255, 215, 0, 0.8);
+        /* 金色粒子 */
+        border-radius: 50%;
+        animation: particle 1.8s infinite ease-in-out;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        /* 添加光晕 */
+    }
+
+    @keyframes particle {
+
+        0%,
+        100% {
+            transform: translate(0, 0);
+            opacity: 1;
+        }
+
+        25% {
+            transform: translate(40px, -20px);
+            opacity: 0.8;
+        }
+
+        50% {
+            transform: translate(0, 40px);
+            opacity: 0.6;
+        }
+
+        75% {
+            transform: translate(-40px, -20px);
+            opacity: 0.8;
+        }
+    }
+
+    /* 加载文字样式 */
+    .loading-text {
+        margin-top: 2rem;
+        font-size: 1.2rem;
+        color: rgba(255, 215, 0, 0.8);
+        /* 金色文字 */
+        letter-spacing: 2px;
+        animation: text-pulse 1.5s infinite;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+
+    /* 背景动态流光效果 */
+    #preloader::before {
+        content: '';
+        position: absolute;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg,
+                rgba(255, 215, 0, 0.1) 0%,
+                transparent 50%,
+                rgba(255, 215, 0, 0.1) 100%);
+        animation: bg-rotate 6s linear infinite;
+    }
+
+    @keyframes bg-rotate {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
     <style>
         :root {
             --primary: #2AABEE;
@@ -181,6 +277,15 @@
     </head>
     
     <body>
+        <!-- 在 <body> 开头添加 -->
+        <div id="loading">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p data-translate="loading">加载中...</p>
+        </div>
 <style>
     /* 更新控制栏样式 */
     .control-bar {
@@ -253,6 +358,60 @@
 </div>
 
 </head>
+
+<body>
+    <!-- 加载动画 -->
+    <div id="preloader">
+        <div class="particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+        <div class="loading-text" data-translate="loading">正在加载...</div>
+    </div>
+
+    <!-- 页面内容 -->
+    <div class="content" style="display: none;">
+        <!-- 原有页面内容 -->
+    </div>
+
+    <script>
+        // 多语言加载提示
+        const loadingTranslations = {
+            zh: '正在加载...',
+            en: 'Loading...',
+            ja: '読み込み中...',
+            ru: 'Загрузка...'
+        };
+
+        // 初始化加载状态
+        document.querySelector('.loading-text').textContent =
+            loadingTranslations[document.documentElement.dataset.lang] || 'Loading...';
+
+        // 页面加载完成处理
+        window.addEventListener('load', () => {
+            const preloader = document.getElementById('preloader');
+            preloader.style.opacity = '0';
+
+            setTimeout(() => {
+                preloader.style.display = 'none';
+                document.querySelector('.content').style.display = 'block';
+
+                // 初始化粒子动画取消
+                const particles = document.querySelectorAll('.particle');
+                particles.forEach(p => p.style.animation = 'none');
+            }, 500);
+        });
+
+        // 主题变化适配
+        function toggleTheme() {
+            const preloader = document.getElementById('preloader');
+            preloader.style.background = document.documentElement.dataset.theme === 'dark'
+                ? '#0A0A12'
+                : '#F8FAFC';
+        }
+    </script>
+</body>
 
 
     <div class="container">
