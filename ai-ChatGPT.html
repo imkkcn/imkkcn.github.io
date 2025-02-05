@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter AI 聊天</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --accent-color: #007bff;
+            --card-bg: #2d2d2d;
+            --input-bg: #3a3a3a;
+            --button-bg: #007bff;
+            --button-hover-bg: #0056b3;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', system-ui;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .chat-container {
+            background: var(--input-bg);
+            border-radius: 15px;
+            padding: 20px;
+            height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .user-message {
+            background: rgba(0, 123, 255, 0.2);
+            margin-left: 20%;
+        }
+
+        .bot-message {
+            background: rgba(255, 255, 255, 0.1);
+            margin-right: 20%;
+        }
+
+        .loading-message {
+            text-align: center;
+            color: var(--accent-color);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1em;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            font-size: 1em;
+        }
+
+        button:hover {
+            background: var(--button-hover-bg);
+            transform: scale(1.05);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-button {
+            margin-top: 10px;
+            background: #28a745;
+        }
+
+        .toggle-button.off {
+            background: #dc3545;
+        }
+
+        .reasoning-process {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        pre {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            color: #f8f8f2;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>OpenRouter AI 聊天室</h1>
+
+        <div class="chat-container" id="chatContainer"></div>
+
+        <div class="input-group">
+            <input type="text" id="userInput" placeholder="输入消息...">
+            <button id="sendButton" onclick="sendMessage()">发送</button>
+        </div>
+
+        <button class="toggle-button" id="searchToggle" onclick="toggleSearch()">开启网络搜索</button>
+
+        <div class="reasoning-process" id="reasoningProcess"></div>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+        let isSearchEnabled = false;
+        let currentRequest = null;
+
+        const serphouseApiKey = 'YdzkFc8YIL29HNkuupfDIo84OsWj0elEqR43ZCCxfawlOFU4ywIkNnav9iIJ';
+
+        async function webSearch(query) {
+            try {
+                const response = await fetch('https://api.serphouse.com/serp/live', {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'authorization': `Bearer ${serphouseApiKey}`,
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            q: query,
+                            domain: "google.com",
+                            loc: "Abernathy,Texas,United States",
+                            lang: "en",
+                            device: "desktop",
+                            serp_type: "web",
+                            page: "1",
+                            verbatim: "0"
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                return data.results?.slice(0, 3).map(item =>
+                    `${item.title}: ${item.description} (${item.url})`
+                ).join('\n\n') || '未找到相关搜索结果';
+            } catch (error) {
+                return `搜索失败: ${error.message}`;
+            }
+        }
+
+        function toggleSearch() {
+            isSearchEnabled = !isSearchEnabled;
+            const button = document.getElementById('searchToggle');
+            button.textContent = isSearchEnabled ? '关闭网络搜索' : '开启网络搜索';
+            button.classList.toggle('off', !isSearchEnabled);
+        }
+
+        async function sendMessage() {
+            const apiKey = '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';
+            const userInput = document.getElementById('userInput').value;
+            const chatContainer = document.getElementById('chatContainer');
+            const sendButton = document.getElementById('sendButton');
+            const reasoningProcess = document.getElementById('reasoningProcess');
+
+            if (!userInput) return;
+
+            appendMessage('user', userInput);
+            document.getElementById('userInput').value = '';
+            appendMessage('loading', '思考中...');
+            sendButton.textContent = '发送中...';
+            sendButton.onclick = cancelRequest;
+
+            const timeout = setTimeout(() => {
+                appendMessage('bot', 'AI响应超时，请稍后再试。');
+                removeLoadingMessage();
+                resetSendButton();
+            }, 1800000); // 30分钟超时
+
+            try {
+                let searchResults = '';
+                if (isSearchEnabled) {
+                    // 提取问题的主体进行搜索
+                    const subject = extractSubject(userInput);
+                    searchResults = await webSearch(subject);
+                }
+
+                // 将搜索结果加入上下文
+                const fullPrompt = isSearchEnabled
+                    ? `网络搜索结果: ${searchResults}\n基于以上信息回答: ${userInput}`
+                    : userInput;
+
+                conversationHistory.push({
+                    role: "user",
+                    content: fullPrompt
+                });
+
+                currentRequest = fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'OpenRouter AI Chat'
+                    },
+                    body: JSON.stringify({
+                        model: "deepseek/deepseek-r1:free",
+                        messages: conversationHistory
+                    })
+                });
+
+                const response = await currentRequest;
+                const data = await response.json();
+
+                clearTimeout(timeout);
+                removeLoadingMessage();
+                resetSendButton();
+
+                if (data.choices && data.choices.length > 0) {
+                    const botMessage = data.choices[0].message.content;
+                    appendMessage('bot', botMessage, data.choices[0].message.role);
+                    conversationHistory.push({ role: "assistant", content: botMessage });
+
+                    // 显示推理过程
+                    const reasoning = extractReasoning(botMessage);
+                    reasoningProcess.textContent = `推理过程:\n${reasoning}`;
+                    reasoningProcess.style.display = 'block';
+                } else {
+                    appendMessage('bot', 'AI未能生成有效的响应。');
+                }
+            } catch (error) {
+                clearTimeout(timeout);
+                removeLoadingMessage();
+                resetSendButton();
+                appendMessage('bot', `错误: ${error.message}`);
+            }
+        }
+
+        function cancelRequest() {
+            if (currentRequest) {
+                currentRequest.abort();
+                appendMessage('bot', '请求已取消。');
+                removeLoadingMessage();
+                resetSendButton();
+            }
+        }
+
+        function resetSendButton() {
+            const sendButton = document.getElementById('sendButton');
+            sendButton.textContent = '发送';
+            sendButton.onclick = sendMessage;
+        }
+
+        function extractSubject(query) {
+            // 简单的主体提取逻辑（根据需要可以优化）
+            const words = query.split(' ');
+            return words.length > 1 ? words.slice(0, words.length - 1).join(' ') : query;
+        }
+
+        function extractReasoning(message) {
+            const reasoningMatch = message.match(/<think>([\s\S]*?)<\/think>/);
+            return reasoningMatch ? reasoningMatch[1] : '无推理过程';
+        }
+
+        function appendMessage(role, content, messageType) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+
+            if (role === 'loading') {
+                messageDiv.className = 'message loading-message';
+            }
+
+            if (messageType === 'code') {
+                const pre = document.createElement('pre');
+                const code = document.createElement('code');
+                code.textContent = content;
+                pre.appendChild(code);
+                messageDiv.appendChild(pre);
+                hljs.highlightElement(code);
+            } else {
+                messageDiv.textContent = content;
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const chatContainer = document.getElementById('chatContainer');
+            const loadingMessage = chatContainer.querySelector('.loading-message');
+            if (loadingMessage) {
+                chatContainer.removeChild(loadingMessage);
+            }
+        }
+
+        // 回车键发送消息
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+
+</html>
